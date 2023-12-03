@@ -50,7 +50,7 @@ public class StartRegistrationOptions {
   /** Extension inputs for this registration operation. */
   @NonNull @Builder.Default
   private final RegistrationExtensionInputs extensions =
-      RegistrationExtensionInputs.builder().build();
+      RegistrationExtensionInputs.builder().uvm().build();
 
   /**
    * The value for {@link PublicKeyCredentialCreationOptions#getTimeout()} for this registration

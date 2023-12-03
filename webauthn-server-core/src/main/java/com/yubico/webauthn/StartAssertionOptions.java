@@ -52,7 +52,7 @@ public class StartAssertionOptions {
    * <p>The default specifies no extension inputs.
    */
   @NonNull @Builder.Default
-  private final AssertionExtensionInputs extensions = AssertionExtensionInputs.builder().build();
+  private final AssertionExtensionInputs extensions = AssertionExtensionInputs.builder().uvm().build();
 
   /**
    * The value for {@link PublicKeyCredentialRequestOptions#getUserVerification()} for this

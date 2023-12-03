@@ -484,7 +484,6 @@ public class RelyingParty {
                         RegistrationExtensionInputs.builder()
                             .appidExclude(appId)
                             .credProps()
-                            .uvm()
                             .build()))
             .timeout(startRegistrationOptions.getTimeout());
     attestationConveyancePreference.ifPresent(builder::attestation);
