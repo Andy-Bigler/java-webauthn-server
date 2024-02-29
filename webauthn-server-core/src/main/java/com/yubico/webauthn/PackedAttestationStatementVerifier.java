@@ -272,24 +272,29 @@ final class PackedAttestationStatementVerifier
               "Wrong attestation certificate X509 version: %s, expected: 3", cert.getVersion()));
     }
 
+    // https://source.android.com/docs/security/features/keystore/attestation#tbscertificate-sequence
+    // subject:	CN = "Android Keystore Key" (fixed value: same on all certs)
+    final String cnValue = "Android Keystore Key";
     final String ouValue = "Authenticator Attestation";
     final Set<String> countries =
         CollectionUtil.immutableSet(new HashSet<>(Arrays.asList(Locale.getISOCountries())));
 
-    ExceptionUtil.assertTrue(
-        getDnField("C", cert).filter(countries::contains).isPresent(),
-        "Invalid attestation certificate country code: %s",
-        getDnField("C", cert));
+    if (!getDnField("CN", cert).filter(cnValue::equals).isPresent()) {
+      ExceptionUtil.assertTrue(
+              getDnField("C", cert).filter(countries::contains).isPresent(),
+              "Invalid attestation certificate country code: %s",
+              getDnField("C", cert));
 
-    ExceptionUtil.assertTrue(
-        getDnField("O", cert).filter(o -> !((String) o).isEmpty()).isPresent(),
-        "Organization (O) field of attestation certificate DN must be present.");
+      ExceptionUtil.assertTrue(
+              getDnField("O", cert).filter(o -> !((String) o).isEmpty()).isPresent(),
+              "Organization (O) field of attestation certificate DN must be present.");
 
-    ExceptionUtil.assertTrue(
-        getDnField("OU", cert).filter(ouValue::equals).isPresent(),
-        "Organization Unit (OU) field of attestation certificate DN must be exactly \"%s\", was: %s",
-        ouValue,
-        getDnField("OU", cert));
+      ExceptionUtil.assertTrue(
+              getDnField("OU", cert).filter(ouValue::equals).isPresent(),
+              "Organization Unit (OU) field of attestation certificate DN must be exactly \"%s\", was: %s",
+              ouValue,
+              getDnField("OU", cert));
+    }
 
     CertificateParser.parseFidoAaguidExtension(cert)
         .ifPresent(
