@@ -27,36 +27,25 @@ package com.yubico.webauthn;
 import COSE.CoseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.upokecenter.cbor.CBORObject;
-import com.yubico.internal.util.CertificateParser;
-import com.yubico.internal.util.CollectionUtil;
 import com.yubico.internal.util.ExceptionUtil;
 import com.yubico.webauthn.data.AttestationObject;
 import com.yubico.webauthn.data.AttestationType;
 import com.yubico.webauthn.data.ByteArray;
 import com.yubico.webauthn.data.COSEAlgorithmIdentifier;
-import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.security.spec.InvalidKeySpecException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import javax.naming.InvalidNameException;
-import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 
+import java.io.IOException;
+import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.util.*;
+
+// ToDo make sure https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-android-key-attestation is implemented correctly
+// Currently it's just copied from packed attestation statement verifier
 @Slf4j
-final class PackedAttestationStatementVerifier
+final class AndroidKeyAttestationStatementVerifier
     implements AttestationStatementVerifier, X5cAttestationStatementVerifier {
 
   @Override
@@ -225,14 +214,7 @@ final class PackedAttestationStatementVerifier
                 }
 
                 try {
-                  return (signatureVerifier.verify(signature.getBytes())
-                      && verifyX5cRequirements(
-                          attestationCertificate,
-                          attestationObject
-                              .getAuthenticatorData()
-                              .getAttestedCredentialData()
-                              .get()
-                              .getAaguid()));
+                  return signatureVerifier.verify(signature.getBytes());
                 } catch (SignatureException e) {
                   throw ExceptionUtil.wrapAndLog(
                       log, "Failed to verify signature: " + attestationObject, e);
@@ -246,62 +228,5 @@ final class PackedAttestationStatementVerifier
             () ->
                 new IllegalArgumentException(
                     "If \"x5c\" property is present in \"packed\" attestation format it must be an array containing at least one DER encoded X.509 cerficicate."));
-  }
-
-  private Optional<Object> getDnField(String field, X509Certificate cert) {
-    final LdapName ldap;
-    try {
-      ldap = new LdapName(cert.getSubjectX500Principal().getName());
-    } catch (InvalidNameException e) {
-      throw ExceptionUtil.wrapAndLog(
-          log,
-          "X500Principal name was not accepted as an LdapName: "
-              + cert.getSubjectX500Principal().getName(),
-          e);
-    }
-    return ldap.getRdns().stream()
-        .filter(rdn -> Objects.equals(rdn.getType(), field))
-        .findAny()
-        .map(Rdn::getValue);
-  }
-
-  public boolean verifyX5cRequirements(X509Certificate cert, ByteArray aaguid) {
-    if (cert.getVersion() != 3) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Wrong attestation certificate X509 version: %s, expected: 3", cert.getVersion()));
-    }
-
-    final String ouValue = "Authenticator Attestation";
-    final Set<String> countries =
-        CollectionUtil.immutableSet(new HashSet<>(Arrays.asList(Locale.getISOCountries())));
-
-    ExceptionUtil.assertTrue(
-        getDnField("C", cert).filter(countries::contains).isPresent(),
-        "Invalid attestation certificate country code: %s",
-        getDnField("C", cert));
-
-    ExceptionUtil.assertTrue(
-        getDnField("O", cert).filter(o -> !((String) o).isEmpty()).isPresent(),
-        "Organization (O) field of attestation certificate DN must be present.");
-
-    ExceptionUtil.assertTrue(
-        getDnField("OU", cert).filter(ouValue::equals).isPresent(),
-        "Organization Unit (OU) field of attestation certificate DN must be exactly \"%s\", was: %s",
-        ouValue,
-        getDnField("OU", cert));
-
-    CertificateParser.parseFidoAaguidExtension(cert)
-        .ifPresent(
-            extensionAaguid -> {
-              ExceptionUtil.assertTrue(
-                  Arrays.equals(aaguid.getBytes(), extensionAaguid),
-                  "X.509 extension \"id-fido-gen-ce-aaguid\" is present but does not match the authenticator AAGUID.");
-            });
-
-    ExceptionUtil.assertTrue(
-        cert.getBasicConstraints() == -1, "Attestation certificate must not be a CA certificate.");
-
-    return true;
   }
 }

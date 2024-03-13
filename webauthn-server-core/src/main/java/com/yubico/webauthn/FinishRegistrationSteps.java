@@ -385,6 +385,8 @@ final class FinishRegistrationSteps {
           return Optional.of(new PackedAttestationStatementVerifier());
         case "android-safetynet":
           return Optional.of(new AndroidSafetynetAttestationStatementVerifier());
+        case "android-key":
+          return Optional.of(new AndroidKeyAttestationStatementVerifier());
         case "apple":
           return Optional.of(new AppleAttestationStatementVerifier());
         case "tpm":
